@@ -1,0 +1,3 @@
+# macOS library leaks
+leak:libobjc.A.dylib
+leak:__ubsan::InitAsStandalone
