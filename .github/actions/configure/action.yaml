@@ -1,0 +1,48 @@
+name: Configure
+description: "Configure"
+inputs:
+  mode:
+    description: 'xmake mode'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install xmake
+      uses: xmake-io/github-action-setup-xmake@v1
+      with:
+        xmake-version: '3.0.1'
+        actions-cache-folder: '.xmake-cache'
+
+    - if: runner.os == 'Linux'
+      shell: bash
+      env:
+        LLVM_VERSION: 20
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        echo 'APT::Get::Assume-Yes "true";' | sudo tee -a /etc/apt/apt.conf.d/90assumeyes
+        echo 'DPkg::Options::="--force-confold";' | sudo tee -a /etc/apt/apt.conf.d/90assumeyes
+        echo 'DPkg::NoTriggers "true";' | sudo tee -a /etc/apt/apt.conf.d/90assumeyes
+        sudo apt-get update
+        sudo apt-get install lsb-release software-properties-common gnupg wget
+        wget -qO - https://apt.llvm.org/llvm.sh | sudo bash -s -- ${LLVM_VERSION} all
+        for tool in clang clang++ clang-format clang-tidy clangd lld ld.lld lldb llvm-ar llvm-nm llvm-ranlib llvm-config; do
+          if [ -f "/usr/bin/${tool}-${LLVM_VERSION}" ]; then
+              sudo update-alternatives --install /usr/bin/${tool} ${tool} /usr/bin/${tool}-${LLVM_VERSION} 100
+              sudo update-alternatives --set ${tool} /usr/bin/${tool}-${LLVM_VERSION}
+          fi
+        done
+        xmake config --verbose --sdk=/usr/lib/llvm-${LLVM_VERSION} --mode=${{ inputs.mode }}
+
+    - if: runner.os == 'macOS'
+      shell: bash
+      env:
+        LLVM_VERSION: 20
+      run: |
+        brew install llvm@${{ env.LLVM_VERSION }}
+        xmake config --verbose --sdk=$(brew --prefix llvm@${{ env.LLVM_VERSION }}) --mode=${{ inputs.mode }}
+
+    - if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        xmake config --verbose --mode=${{ inputs.mode }}
