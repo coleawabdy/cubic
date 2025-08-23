@@ -1,0 +1,9 @@
+[workspace]
+members = ["crates/*"]
+resolver = "2"
+
+[workspace.package]
+rust-version = "1.89"
+edition = "2024"
+authors = ["Cole Awabdy"]
+repository = "https://github.com/coleawabdy/cubic"
