@@ -46,7 +46,7 @@ jobs:
           cache: true
         
       - name: Lint
-        run: cargo clippy --frozen --locked --workspace --all-features -- -D warnings
+        run: cargo clippy --locked --workspace --all-features -- -D warnings
 
       - name: Check Formatting
         run: cargo fmt --all --check
