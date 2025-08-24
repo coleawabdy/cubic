@@ -1,3 +1,7 @@
+use common::runtime;
+
 fn main() {
-    println!("Hello, world!");
+    runtime::start(|rt| {
+        rt.launch_task_sync(|| println!("Hello, World!"));
+    });
 }

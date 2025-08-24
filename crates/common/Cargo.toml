@@ -1,10 +1,10 @@
 [package]
-name = "cubic"
-version.workspace = true
+name = "common"
+version = "0.0.0"
 rust-version.workspace = true
 edition.workspace = true
 authors.workspace = true
 repository.workspace = true
 
 [dependencies]
-common = { path = "../common" }
+tokio = { version = "1", features = ["rt", "sync"] }
