@@ -1,3 +1,7 @@
+use cubic::{client, common};
+
 fn main() {
-    println!("Hello");
+    common::runtime::start(|handle| {
+        client::start(handle);
+    });
 }
