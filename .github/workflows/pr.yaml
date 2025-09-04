@@ -13,9 +13,18 @@ jobs:
       fail-fast: false
       matrix:
         target:
-          - { triple: 'x86_64-unknown-linux-gnu', runner: 'ubuntu-latest' }
-          - { triple: 'aarch64-apple-darwin', runner: 'macos-latest' }
-          - { triple: 'x86_64-pc-windows-msvc', runner: 'windows-latest' }
+          - triple: 'x86_64-unknown-linux-gnu'
+            runner: 'ubuntu-latest'
+            test: true
+          - triple: 'aarch64-apple-darwin'
+            runner: 'macos-latest'
+            test: true
+          - triple: 'x86_64-pc-windows-msvc'
+            runner: 'windows-latest'
+            test: true
+          - triple: 'wasm32-unknown-unknown'
+            runner: ubuntu-latest
+            test: false
     runs-on: ${{ matrix.target.runner }}
     steps:
       - name: Checkout
@@ -31,6 +40,7 @@ jobs:
         run: cargo build --target ${{ matrix.target.triple }} --workspace --all-features
 
       - name: Test
+        if: ${{ matrix.target.test }}
         run: cargo test --target ${{ matrix.target.triple }} --workspace --all-features
 
   analyze:

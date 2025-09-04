@@ -23,7 +23,7 @@ impl Context {
 
         let surface = instance.create_surface(window).unwrap();
 
-        return async move {
+        async move {
             let adapter = instance
                 .request_adapter(&wgpu::RequestAdapterOptions {
                     power_preference: wgpu::PowerPreference::HighPerformance,
@@ -38,13 +38,13 @@ impl Context {
                 .unwrap();
 
             let preferred_format = surface.get_capabilities(&adapter).formats[0];
-            return Self {
+            Self {
                 surface,
                 device,
                 queue,
                 preferred_format,
-            };
-        };
+            }
+        }
     }
 
     pub fn resize(&self, width: u32, height: u32) {

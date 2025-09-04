@@ -1,3 +1,5 @@
+use crate::common::primitive::NativeSend;
+
 #[cfg(not(target_arch = "wasm32"))]
 pub type Handle = native::Handle;
 #[cfg(target_arch = "wasm32")]
@@ -23,8 +25,8 @@ pub trait HandleInterface: Clone {
     fn launch_task_async<Fn, Fut, T>(&self, future: Fn) -> TaskHandle<T>
     where
         Fn: FnOnce(Self) -> Fut + 'static,
-        T: Send + 'static,
-        Fut: Future<Output = T> + Send + 'static;
+        T: NativeSend + 'static,
+        Fut: Future<Output = T> + NativeSend + 'static;
 }
 
 pub trait TaskHandleInterface<T> {
@@ -67,22 +69,6 @@ mod native {
     }
 
     impl HandleInterface for Handle {
-        fn launch_task_async<Fn, Fut, T>(&self, func: Fn) -> TaskHandle<T>
-        where
-            Fn: FnOnce(Handle) -> Fut + 'static,
-            Fut: Future<Output = T> + Send + 'static,
-            T: Send + 'static,
-        {
-            let (tx, rx) = oneshot::channel::<T>();
-            let handle = self.clone();
-
-            let future = func(handle);
-            self.async_handle_tx.send(self.tokio_rt_handle
-                .spawn(async move { tx.send(future.await).ok(); })).unwrap();
-
-            TaskHandle::new(rx)
-        }
-
         fn should_stop(&self) -> bool {
             self.stop_token.is_cancelled()
         }
@@ -93,6 +79,25 @@ mod native {
 
         fn stopped(&self) -> impl Future<Output = ()> {
             self.stop_token.cancelled()
+        }
+
+        fn launch_task_async<Fn, Fut, T>(&self, func: Fn) -> TaskHandle<T>
+        where
+            Fn: FnOnce(Handle) -> Fut + 'static,
+            Fut: Future<Output = T> + Send + 'static,
+            T: Send + 'static,
+        {
+            let (tx, rx) = oneshot::channel::<T>();
+            let handle = self.clone();
+
+            let future = func(handle);
+            self.async_handle_tx
+                .send(self.tokio_rt_handle.spawn(async move {
+                    tx.send(future.await).ok();
+                }))
+                .unwrap();
+
+            TaskHandle::new(rx)
         }
     }
 
@@ -169,7 +174,7 @@ mod native {
                         signal::ctrl_c()
                             .await
                             .expect("failed to install Ctrl+C handler");
-                    });                    
+                    });
 
                     #[cfg(unix)]
                     let mut terminate = Box::pin(async {
@@ -237,9 +242,7 @@ mod web {
     use super::*;
 
     #[derive(Clone)]
-    pub struct Handle {
-
-    }
+    pub struct Handle {}
 
     impl HandleInterface for Handle {
         fn stop(&self) {
@@ -248,21 +251,27 @@ mod web {
         fn should_stop(&self) -> bool {
             todo!()
         }
-        fn stopped(&self) -> impl Future<Output = ()> {
+        async fn stopped(&self) -> () {
             todo!()
         }
 
-        fn launch_task_async<Fn, Fut, T>(&self, future: Fn) -> TaskHandle<T>
+        fn launch_task_async<Fn, Fut, T>(&self, func: Fn) -> TaskHandle<T>
         where
             Fn: FnOnce(Self) -> Fut + 'static,
-            T: Send + 'static,
-            Fut: Future<Output = T> + Send + 'static {
-                todo!()
-            }
+            T: 'static,
+            Fut: Future<Output = T> + 'static,
+        {
+            let task_handle = self.clone();
+            let fut = func(task_handle);
+            wasm_bindgen_futures::spawn_local(async move {
+                fut.await;
+            });
+            todo!()
+        }
     }
 
     pub struct TaskHandle<T> {
-        internal: T
+        _internal: T,
     }
 
     impl<T> TaskHandleInterface<T> for TaskHandle<T> {
@@ -276,10 +285,10 @@ mod web {
     }
 }
 
-pub fn start<T>(task: T)
+pub fn start<T>(_task: T)
 where
     T: FnOnce(Handle),
 {
     #[cfg(not(target_arch = "wasm32"))]
-    native::start(task)
+    native::start(_task)
 }
